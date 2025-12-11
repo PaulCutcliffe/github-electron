@@ -1,13 +1,21 @@
+const path = require("path");
 const { app, BrowserWindow, session } = require("electron");
 
 let mainWindow;
 
-const loadPlaceholder = () => {
-  mainWindow.loadURL(`file://${__dirname}/index.html`).then(() => {
-    mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
-      console.log(webContents, permission, callback, details);
-    });
-  }).catch((e) => { console.error(e); });
+const isGithubOrigin = (origin) => origin === "https://github.com" || origin.endsWith(".github.com");
+
+const registerPermissionHandler = () => {
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const allowNotifications =
+      permission === "notifications" && isGithubOrigin(details.securityOrigin);
+
+    if (!allowNotifications) {
+      console.info(`Declined permission '${permission}' requested by ${details.securityOrigin}`);
+    }
+
+    callback(allowNotifications);
+  });
 };
 
 const createWindow = () => {
@@ -16,25 +24,37 @@ const createWindow = () => {
     width: 1024,
     icon: `${__dirname}/github.png`,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
       webviewTag: true,
-      nodeIntegration: true
+      nodeIntegration: false
     }
   });
 
   mainWindow.removeMenu();
 
-  loadPlaceholder();
+  mainWindow.loadFile(path.join(__dirname, "index.html")).catch((error) => {
+    console.error("Failed to load the renderer:", error);
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 };
 
-app.on("ready", createWindow);
+app.whenReady().then(() => {
+  registerPermissionHandler();
+  createWindow();
+});
 
-app.on("activate", () => mainWindow === null && createWindow());
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
 
-app.on(
-  "window-all-closed",
-  () => process.platform !== "darwin" && app.quit()
-);
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
