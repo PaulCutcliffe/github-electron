@@ -7,20 +7,53 @@
       margin: 0;
       padding: 0;
     }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid #dadce0;
+      background: #f7f9fb;
+    }
+
+    #toolbar button {
+      padding: 6px 12px;
+      font-size: 14px;
+      border: 1px solid #ccd0d5;
+      border-radius: 4px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    #toolbar button:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+
     #github {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      top: 0;
+      flex: 1;
     }
   </style>
   <script>
     onload = () => {
       const webview = document.querySelector("webview");
+      const backButton = document.querySelector("#nav-back");
+      const forwardButton = document.querySelector("#nav-forward");
+
+      const updateNavigationState = () => {
+        backButton.disabled = !webview.canGoBack();
+        forwardButton.disabled = !webview.canGoForward();
+      };
 
       webview.addEventListener("dom-ready", () => {
         webview.focus();
+        updateNavigationState();
       });
 
       webview.addEventListener("new-window", (event) => {
@@ -38,9 +71,48 @@
           webview.loadURL(targetUrl);
         }
       });
+
+      webview.addEventListener("did-navigate", updateNavigationState);
+      webview.addEventListener("did-navigate-in-page", updateNavigationState);
+
+      const goBack = () => {
+        if (webview.canGoBack()) {
+          webview.goBack();
+        }
+      };
+
+      const goForward = () => {
+        if (webview.canGoForward()) {
+          webview.goForward();
+        }
+      };
+
+      const handleAltNavigation = (event) => {
+        if (!event.altKey) {
+          return;
+        }
+
+        if (event.code === "ArrowLeft") {
+          event.preventDefault();
+          goBack();
+        } else if (event.code === "ArrowRight") {
+          event.preventDefault();
+          goForward();
+        }
+      };
+
+      backButton.addEventListener("click", goBack);
+      forwardButton.addEventListener("click", goForward);
+
+      window.addEventListener("keydown", handleAltNavigation);
+      webview.addEventListener("keydown", handleAltNavigation);
     }
     </script>
   <body>
+    <div id="toolbar">
+      <button id="nav-back" aria-label="Back" disabled>Back</button>
+      <button id="nav-forward" aria-label="Forward" disabled>Forward</button>
+    </div>
     <webview id="github" src="https://github.com"></webview>
   </body>
 </html>
