@@ -54,6 +54,23 @@
       webview.addEventListener("dom-ready", () => {
         webview.focus();
         updateNavigationState();
+
+        const webContents = webview.getWebContents();
+        if (webContents) {
+          webContents.on("before-input-event", (event, input) => {
+            if (!input.alt) {
+              return;
+            }
+
+            if (input.code === "ArrowLeft") {
+              event.preventDefault();
+              goBack();
+            } else if (input.code === "ArrowRight") {
+              event.preventDefault();
+              goForward();
+            }
+          });
+        }
       });
 
       webview.addEventListener("new-window", (event) => {
